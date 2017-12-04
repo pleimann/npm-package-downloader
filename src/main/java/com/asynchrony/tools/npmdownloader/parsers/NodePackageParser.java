@@ -1,5 +1,7 @@
-package com.asynchrony.tools.npmdownloader.model;
+package com.asynchrony.tools.npmdownloader.parsers;
 
+import com.asynchrony.tools.npmdownloader.model.NodePackageSpec;
+import com.asynchrony.tools.npmdownloader.model.NodePackageVersion;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.yuchi.semver.Range;
@@ -44,36 +46,39 @@ public class NodePackageParser {
 
         Range versionSpec = Range.from(versionSpecString, true);
 
-        return Optional.of(new NodePackageSpec(scope, name, versionSpec));
+        if(versionSpec == null){
+            log.info("PackageSpec has no versionSpec: " + specString + "! Defaulting to '^0.0.0'");
+
+            versionSpec = Range.from("^0.0.0", true);
+        }
+
+        return Optional.of(new NodePackageSpec(specString, scope, name, versionSpec));
     }
 
-    public static NodePackageSpec loadVersionsForPackageSpec(final NodePackageSpec nodePackageSpec) {
-        if(nodePackageSpec.getVersions() == null) {
-            final URL packageRegistryUrl = packageRegistryUrl(nodePackageSpec.getScopedName()).orElseThrow(IllegalArgumentException::new);
+    public static SortedSet<NodePackageVersion> loadVersionsForPackageSpec(final NodePackageSpec nodePackageSpec) {
+        final URL packageRegistryUrl = packageRegistryUrl(nodePackageSpec.getScopedName())
+                .orElseThrow(IllegalArgumentException::new);
 
-            try (InputStream registryStream = packageRegistryUrl.openStream()) {
-                JsonNode parsed = JSON.readTree(registryStream);
+        try (InputStream registryStream = packageRegistryUrl.openStream()) {
+            JsonNode parsed = JSON.readTree(registryStream);
 
-                JsonNode versionsJson = parsed.path("versions");
+            JsonNode versionsJson = parsed.path("versions");
 
-                SortedSet<NodePackageVersion> packageVersions = new TreeSet<>();
+            SortedSet<NodePackageVersion> packageVersions = new TreeSet<>();
 
-                versionsJson.fields().forEachRemaining(versionJsonEntry -> {
-                    NodePackageVersion packageVersion = parseVersionJSON(versionJsonEntry.getValue());
+            versionsJson.fields().forEachRemaining(versionJsonEntry -> {
+                NodePackageVersion packageVersion = parseVersionJSON(versionJsonEntry.getValue());
 
-                    if (nodePackageSpec.getVersionRange().test(packageVersion.getVersion())) {
-                        packageVersions.add(packageVersion);
-                    }
-                });
+                if (nodePackageSpec.getVersionRange() != null
+                        && nodePackageSpec.getVersionRange().test(packageVersion.getVersion())) {
+                    packageVersions.add(packageVersion);
+                }
+            });
 
-                return nodePackageSpec.withVersions(packageVersions);
+            return packageVersions;
 
-            } catch (IOException e) {
-                throw new RuntimeException("Error connecting to NPM Registry at URL " + packageRegistryUrl + " for package " + nodePackageSpec, e);
-            }
-
-        } else {
-            return nodePackageSpec;
+        } catch (IOException e) {
+            throw new RuntimeException("Error connecting to NPM Registry at URL " + packageRegistryUrl + " for package " + nodePackageSpec, e);
         }
     }
 
@@ -100,20 +105,18 @@ public class NodePackageParser {
             }
         }
 
-        Set<NodePackageSpec> dependencies = new HashSet<>();
+        Set<String> dependencies = new HashSet<>();
         dependencies.addAll(extractDependencies(versionObj, "dependencies"));
         dependencies.addAll(extractDependencies(versionObj, "peerDependencies"));
 
         return new NodePackageVersion(scope, name, version, tarballUrl, dependencies);
     }
 
-    public static Set<NodePackageSpec> extractDependencies(JsonNode versionObj, String dependenciesSection) {
+    public static Set<String> extractDependencies(JsonNode versionObj, String dependenciesSection) {
         JsonNode dependenciesObj = versionObj.path(dependenciesSection);
 
         return Lists.newArrayList(dependenciesObj.fields()).stream()
-                .map(entry -> parsePackageSpecString(entry.getKey() + "@" + entry.getValue().asText()))
-                .filter(p -> p.isPresent())
-                .map(Optional::get)
+                .map(entry -> entry.getKey() + "@" + entry.getValue().asText())
                 .collect(toSet());
     }
 

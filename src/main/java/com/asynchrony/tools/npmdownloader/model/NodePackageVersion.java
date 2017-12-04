@@ -9,13 +9,13 @@ import java.util.Set;
 
 @Value
 @ToString
-@RequiredArgsConstructor(access = AccessLevel.PACKAGE)
+@RequiredArgsConstructor
 public class NodePackageVersion implements Comparable<NodePackageVersion> {
     private final String scope;
     private final String name;
     private final Version version;
     private final URL tarballUrl;
-    private final Set<NodePackageSpec> dependencies;
+    private final Set<String> dependencies;
 
     public boolean hasScope() {
         return this.scope != null && !"".equals(this.scope);

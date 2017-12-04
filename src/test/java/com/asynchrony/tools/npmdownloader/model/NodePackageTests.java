@@ -1,6 +1,7 @@
 package com.asynchrony.tools.npmdownloader.model;
 
 
+import com.asynchrony.tools.npmdownloader.parsers.NodePackageParser;
 import com.github.yuchi.semver.Range;
 import com.github.yuchi.semver.Version;
 import org.junit.Rule;

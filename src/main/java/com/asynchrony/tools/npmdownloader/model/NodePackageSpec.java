@@ -10,13 +10,12 @@ import java.util.SortedSet;
 @Getter
 @Wither
 @ToString
-@RequiredArgsConstructor(access = AccessLevel.PACKAGE)
-@AllArgsConstructor(access = AccessLevel.PRIVATE)
+@RequiredArgsConstructor
 public class NodePackageSpec implements Comparable<NodePackageSpec> {
+    private final String spec;
     private final String scope;
     private final String name;
     private final Range versionRange;
-    private SortedSet<NodePackageVersion> versions;
 
     public boolean hasScope() {
         return this.scope != null && !"".equals(this.scope);
@@ -29,7 +28,7 @@ public class NodePackageSpec implements Comparable<NodePackageSpec> {
     @Override
     public int compareTo(NodePackageSpec that) {
         return Ordering.natural().nullsLast()
-                .onResultOf(NodePackageSpec::getName)
+                .onResultOf(NodePackageSpec::getScopedName)
                 .compare(this, that);
     }
 }
