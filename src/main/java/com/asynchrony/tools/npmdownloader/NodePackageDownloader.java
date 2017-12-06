@@ -83,10 +83,6 @@ public class NodePackageDownloader {
     }
 
     private void downloadPackageVersion(NodePackageVersion nodePackageVersion) {
-        if (nodePackageVersion.hasScope()) {
-            new File(this.destinationDirectory, nodePackageVersion.getScope()).mkdir();
-        }
-
         File destinationFile = new File(this.destinationDirectory,
                 nodePackageVersion.getName() + "-" + nodePackageVersion.getVersion() + ".tgz");
 
