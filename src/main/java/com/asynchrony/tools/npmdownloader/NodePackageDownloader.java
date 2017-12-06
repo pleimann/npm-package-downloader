@@ -7,8 +7,11 @@ import com.asynchrony.tools.npmdownloader.model.NodePackageVersion;
 import com.google.common.collect.Maps;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.core.io.Resource;
+import org.springframework.stereotype.Component;
 import org.springframework.util.ResourceUtils;
 
 import java.io.File;
@@ -22,18 +25,23 @@ import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
 
 @Slf4j
-@RequiredArgsConstructor(staticName = "create")
+@Component
+@RequiredArgsConstructor
 public class NodePackageDownloader {
-    private final File destinationDirectory;
-
     private final Map<String, NodePackageVersion> downloadQueue = Maps.newConcurrentMap();
     private final ForkJoinPool dependencyPool = new ForkJoinPool(5);
+
+    @Value("${application.download.location:/temp/npm}")
+    private File destinationDirectory;
+
+    private final NodePackageParser nodePackageParser;
+    private final NodeManifestParser nodeManifestParser;
 
     public void queueManifest(String manifest) throws FileNotFoundException {
         URL manifestUrl = ResourceUtils.getURL(manifest);
 
         try (InputStream manifestStream = manifestUrl.openStream()) {
-            Set<String> dependencies = NodeManifestParser.parsePackageJson(manifestStream);
+            Set<String> dependencies = this.nodeManifestParser.parsePackageJson(manifestStream);
 
             dependencies.forEach(this::queuePackage);
 
@@ -48,14 +56,13 @@ public class NodePackageDownloader {
 
         } else {
             log.info("Queueing... " + nodePackageSpecString);
-            NodePackageParser.parsePackageSpecString(nodePackageSpecString)
+            this.nodePackageParser.parsePackageSpecString(nodePackageSpecString)
                     .ifPresent(this::queuePackage);
-
         }
     }
 
     public void queuePackage(NodePackageSpec nodePackageSpec) {
-        final SortedSet<NodePackageVersion> packageVersions = NodePackageParser.loadVersionsForPackageSpec(nodePackageSpec);
+        final SortedSet<NodePackageVersion> packageVersions = this.nodePackageParser.loadVersionsForPackageSpec(nodePackageSpec);
 
         if (!packageVersions.isEmpty()) {
             NodePackageVersion packageVersion = packageVersions.first();

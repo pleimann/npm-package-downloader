@@ -6,11 +6,10 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.yuchi.semver.Range;
 import com.github.yuchi.semver.Version;
-import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
-import com.google.common.collect.MoreCollectors;
-import lombok.experimental.UtilityClass;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Component;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -21,18 +20,19 @@ import java.net.URLEncoder;
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import java.util.stream.Collectors;
 
 import static java.util.stream.Collectors.toSet;
 
 @Slf4j
-@UtilityClass
+@Component
+@RequiredArgsConstructor
 public class NodePackageParser {
-    static final Pattern PACKAGE_SPEC_PATTERN = Pattern.compile("^((@[^@\\/]+)\\/)?([^@\\/]+)(@([^@\\/]+))?$");
-    static final String REGISTRY_URL_STRING = "https://registry.npmjs.com/";
-    static final ObjectMapper JSON = new ObjectMapper();
+    private static final Pattern PACKAGE_SPEC_PATTERN = Pattern.compile("^((@[^@\\/]+)\\/)?([^@\\/]+)(@([^@\\/]+))?$");
+    private static final String REGISTRY_URL_STRING = "https://registry.npmjs.com/";
 
-    public static Optional<NodePackageSpec> parsePackageSpecString(String specString) {
+    private final ObjectMapper objectMapper;
+
+    public Optional<NodePackageSpec> parsePackageSpecString(String specString) {
         Matcher match = PACKAGE_SPEC_PATTERN.matcher(specString);
         if (!match.matches()) {
             log.debug("Invalid package specification: " + specString);
@@ -55,12 +55,12 @@ public class NodePackageParser {
         return Optional.of(new NodePackageSpec(specString, scope, name, versionSpec));
     }
 
-    public static SortedSet<NodePackageVersion> loadVersionsForPackageSpec(final NodePackageSpec nodePackageSpec) {
+    public SortedSet<NodePackageVersion> loadVersionsForPackageSpec(final NodePackageSpec nodePackageSpec) {
         final URL packageRegistryUrl = packageRegistryUrl(nodePackageSpec.getScopedName())
                 .orElseThrow(IllegalArgumentException::new);
 
         try (InputStream registryStream = packageRegistryUrl.openStream()) {
-            JsonNode parsed = JSON.readTree(registryStream);
+            JsonNode parsed = objectMapper.readTree(registryStream);
 
             JsonNode versionsJson = parsed.path("versions");
 
@@ -82,7 +82,7 @@ public class NodePackageParser {
         }
     }
 
-    static NodePackageVersion parseVersionJSON(JsonNode versionObj) {
+    private NodePackageVersion parseVersionJSON(JsonNode versionObj) {
         String name = versionObj.get("name").asText();
         String scope = null;
         if (name.contains("/")) {
@@ -112,7 +112,7 @@ public class NodePackageParser {
         return new NodePackageVersion(scope, name, version, tarballUrl, dependencies);
     }
 
-    public static Set<String> extractDependencies(JsonNode versionObj, String dependenciesSection) {
+    public Set<String> extractDependencies(JsonNode versionObj, String dependenciesSection) {
         JsonNode dependenciesObj = versionObj.path(dependenciesSection);
 
         return Lists.newArrayList(dependenciesObj.fields()).stream()
@@ -120,7 +120,7 @@ public class NodePackageParser {
                 .collect(toSet());
     }
 
-    static Optional<URL> packageRegistryUrl(String packageName) {
+    private Optional<URL> packageRegistryUrl(String packageName) {
         try {
             return Optional.of(new URL(REGISTRY_URL_STRING + encodeScopedPackageName(packageName)));
 
@@ -131,7 +131,7 @@ public class NodePackageParser {
         return Optional.empty();
     }
 
-    private static String encodeScopedPackageName(String packageName) throws UnsupportedEncodingException {
+    private String encodeScopedPackageName(String packageName) throws UnsupportedEncodingException {
         return packageName.replace("/", URLEncoder.encode("/", "UTF-8"));
     }
 }
