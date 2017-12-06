@@ -1,0 +1,9 @@
+spring:
+
+logging:
+  level:
+    com.asynchrony: INFO
+
+application:
+  npm.registry.url: https://registry.npmjs.com
+  download.location: c:\\temp\\npm

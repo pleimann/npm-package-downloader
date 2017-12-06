@@ -2,27 +2,18 @@ package com.asynchrony.tools.npmdownloader.model;
 
 import com.github.yuchi.semver.Range;
 import com.google.common.collect.Ordering;
-import lombok.*;
-import lombok.experimental.Wither;
+import lombok.Value;
 
-import java.util.SortedSet;
+@Value
+public class NodePackageSpec extends NodePackage implements Comparable<NodePackageSpec> {
+    private String spec;
+    private Range versionRange;
 
-@Getter
-@Wither
-@ToString
-@RequiredArgsConstructor
-public class NodePackageSpec implements Comparable<NodePackageSpec> {
-    private final String spec;
-    private final String scope;
-    private final String name;
-    private final Range versionRange;
+    public NodePackageSpec(String scope, String name, String spec, Range versionRange) {
+        super(scope, name);
 
-    public boolean hasScope() {
-        return this.scope != null && !"".equals(this.scope);
-    }
-
-    public String getScopedName(){
-        return this.hasScope() ? this.scope + "/" + this.name : this.name;
+        this.spec = spec;
+        this.versionRange = versionRange;
     }
 
     @Override
@@ -32,3 +23,6 @@ public class NodePackageSpec implements Comparable<NodePackageSpec> {
                 .compare(this, that);
     }
 }
+
+
+

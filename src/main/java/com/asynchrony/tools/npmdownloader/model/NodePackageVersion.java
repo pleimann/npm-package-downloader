@@ -8,21 +8,17 @@ import java.net.URL;
 import java.util.Set;
 
 @Value
-@ToString
-@RequiredArgsConstructor
-public class NodePackageVersion implements Comparable<NodePackageVersion> {
-    private final String scope;
-    private final String name;
-    private final Version version;
-    private final URL tarballUrl;
-    private final Set<String> dependencies;
+public class NodePackageVersion extends NodePackage implements Comparable<NodePackageVersion> {
+    private Version version;
+    private URL tarballUrl;
+    private Set<String> dependencies;
 
-    public boolean hasScope() {
-        return this.scope != null && !"".equals(this.scope);
-    }
+    public NodePackageVersion(String scope, String name, Version version, URL tarballUrl, Set<String> dependencies) {
+        super(scope, name);
 
-    public String getScopedName(){
-        return this.hasScope() ? this.getScope() + "/" + this.getName() : this.getName();
+        this.version = version;
+        this.tarballUrl = tarballUrl;
+        this.dependencies = dependencies;
     }
 
     @Override

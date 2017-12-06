@@ -9,6 +9,8 @@ import com.github.yuchi.semver.Version;
 import com.google.common.collect.Lists;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
@@ -28,14 +30,16 @@ import static java.util.stream.Collectors.toSet;
 @RequiredArgsConstructor
 public class NodePackageParser {
     private static final Pattern PACKAGE_SPEC_PATTERN = Pattern.compile("^((@[^@\\/]+)\\/)?([^@\\/]+)(@([^@\\/]+))?$");
-    private static final String REGISTRY_URL_STRING = "https://registry.npmjs.com/";
+
+    @Value("${application.npm.registry.url:https://registry.npmjs.com/}")
+    private String npmRegistryUrlString;
 
     private final ObjectMapper objectMapper;
 
-    public Optional<NodePackageSpec> parsePackageSpecString(String specString) {
-        Matcher match = PACKAGE_SPEC_PATTERN.matcher(specString);
+    public Optional<NodePackageSpec> parsePackageSpecString(String spec) {
+        Matcher match = PACKAGE_SPEC_PATTERN.matcher(spec);
         if (!match.matches()) {
-            log.debug("Invalid package specification: " + specString);
+            log.debug("Invalid package specification: " + spec);
 
             return Optional.empty();
         }
@@ -47,12 +51,12 @@ public class NodePackageParser {
         Range versionSpec = Range.from(versionSpecString, true);
 
         if(versionSpec == null){
-            log.info("PackageSpec has no versionSpec: " + specString + "! Defaulting to '^0.0.0'");
+            log.info("PackageSpec has no versionSpec: " + spec + "! Defaulting to '^0.0.0'");
 
             versionSpec = Range.from("^0.0.0", true);
         }
 
-        return Optional.of(new NodePackageSpec(specString, scope, name, versionSpec));
+        return Optional.of(new NodePackageSpec(scope, name, spec, versionSpec));
     }
 
     public SortedSet<NodePackageVersion> loadVersionsForPackageSpec(final NodePackageSpec nodePackageSpec) {
@@ -122,7 +126,9 @@ public class NodePackageParser {
 
     private Optional<URL> packageRegistryUrl(String packageName) {
         try {
-            return Optional.of(new URL(REGISTRY_URL_STRING + encodeScopedPackageName(packageName)));
+            String fullPackageUrlString = this.npmRegistryUrlString + (this.npmRegistryUrlString.endsWith("/") ? "" : "/") + encodeScopedPackageName(packageName);
+
+            return Optional.of(new URL(fullPackageUrlString));
 
         } catch (MalformedURLException | UnsupportedEncodingException e) {
             log.error("Error constructing registry URL for package " + packageName, e);
