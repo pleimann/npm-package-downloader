@@ -102,8 +102,6 @@ public class NodeDownloaderApplication implements ApplicationRunner {
 
         ForkJoinPool.commonPool().awaitQuiescence(10, TimeUnit.MINUTES);
 
-        downloader.printDownloadQueue();
-
         downloader.downloadQueuedPackages();
     }
 
